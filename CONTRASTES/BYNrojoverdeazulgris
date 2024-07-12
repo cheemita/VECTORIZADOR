@@ -1,0 +1,78 @@
+import cv2
+import numpy as np
+from tkinter import Tk, filedialog
+
+def enhance_for_laser_engraving(input_path, output_path):
+    # Cargar la imagen en color
+    img = cv2.imread(input_path, cv2.IMREAD_COLOR)
+    
+    # Aplicar filtro bilateral para suavizar la imagen mientras se conservan los bordes
+    smoothed_img = cv2.bilateralFilter(img, 9, 75, 75)
+    
+    # Convertir la imagen a escala de grises
+    gray_img = cv2.cvtColor(smoothed_img, cv2.COLOR_BGR2GRAY)
+    
+    # Invertir la imagen para simular sombras (opcional)
+    inverted_img = 255 - gray_img
+    
+    # Ajustar el contraste para mejorar detalles
+    contrast_img = cv2.equalizeHist(inverted_img)
+    
+    # Definir rangos de color para rojo, azul y gris
+    lower_red = np.array([0, 0, 100])
+    upper_red = np.array([100, 100, 255])
+    
+    lower_blue = np.array([100, 0, 0])
+    upper_blue = np.array([255, 100, 100])
+    
+    lower_gray = np.array([100, 100, 100])
+    upper_gray = np.array([200, 200, 200])
+    
+    # Crear máscaras para rojo, azul y gris
+    mask_red = cv2.inRange(img, lower_red, upper_red)
+    mask_blue = cv2.inRange(img, lower_blue, upper_blue)
+    mask_gray = cv2.inRange(img, lower_gray, upper_gray)
+    
+    # Ajustar el contraste para el rojo, azul y gris, manteniendo el contorno
+    enhanced_img = contrast_img.copy()
+    
+    # Asignar blanco a las áreas rojas, azules y grises
+    enhanced_img[mask_red > 0] = 255
+    enhanced_img[mask_blue > 0] = 255
+    enhanced_img[mask_gray > 0] = 255
+    
+    # Conservar los blancos
+    white_mask = np.all(img >= 240, axis=-1)
+    enhanced_img[white_mask] = 255
+    
+    # Aplicar un suavizado adicional para reducir el ruido
+    enhanced_img = cv2.bilateralFilter(enhanced_img, 5, 50, 50)
+    
+    # Guardar la imagen optimizada para grabación láser
+    cv2.imwrite(output_path, enhanced_img)
+    
+    print(f"Laser-optimized grayscale image with adjusted shadows saved to {output_path}")
+
+# Inicializar la ventana de Tkinter
+root = Tk()
+root.withdraw()  # Ocultar la ventana principal
+
+# Abrir cuadro de diálogo para seleccionar archivo
+input_path = filedialog.askopenfilename(
+    title="Select an Image",
+    filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp")]
+)
+
+# Verificar si se seleccionó un archivo
+if input_path:
+    output_path = filedialog.asksaveasfilename(
+        title="Save Laser-optimized Image As",
+        defaultextension=".png",
+        filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("Bitmap files", "*.bmp")]
+    )
+    
+    # Ejecutar la optimización si se seleccionó una ruta de salida
+    if output_path:
+        enhance_for_laser_engraving(input_path, output_path)
+else:
+    print("No file selected.")
